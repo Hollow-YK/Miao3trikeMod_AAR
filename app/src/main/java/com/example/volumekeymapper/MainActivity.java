@@ -9,12 +9,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
@@ -24,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
 
     private View accessibilityButton;
     private View overlayButton;
+    private View settingsButton;
     private SwitchCompat toggleServiceSwitch;
     private TextView tvAuthor;
     private ImageView imgCharacter;
@@ -53,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private void initViews() {
         accessibilityButton = findViewById(R.id.btn_accessibility_container);
         overlayButton = findViewById(R.id.btn_overlay_container);
+        settingsButton = findViewById(R.id.btn_settings_container);
         toggleServiceSwitch = findViewById(R.id.btn_toggle_service);
         tvAuthor = findViewById(R.id.tv_author);
         imgCharacter = findViewById(R.id.img_character);
@@ -89,6 +95,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        settingsButton.setOnClickListener(v -> showMacroSettingsDialog());
+
         // 开关逻辑
         toggleServiceSwitch.setOnClickListener(v -> {
             boolean newState = toggleServiceSwitch.isChecked();
@@ -120,6 +128,71 @@ public class MainActivity extends AppCompatActivity {
         imgCharacter.setOnClickListener(v -> {
             Toast.makeText(this, "喵呜~不要戳(˃̶͈̀௰˂̶͈́)", Toast.LENGTH_SHORT).show();
         });
+    }
+
+    private void showMacroSettingsDialog() {
+        View content = LayoutInflater.from(this).inflate(R.layout.dialog_macro_settings, null, false);
+
+        EditText etStartup = content.findViewById(R.id.et_startup_delay);
+        EditText etStep = content.findViewById(R.id.et_step_delay);
+        EditText etDrag = content.findViewById(R.id.et_drag_speed);
+        EditText etHold = content.findViewById(R.id.et_hold_delay);
+        Button btnRestore = content.findViewById(R.id.btn_restore_defaults);
+        Button btnSave = content.findViewById(R.id.btn_save_settings);
+
+        MacroConfig.MacroDelays current = MacroConfig.load(this);
+        setNumberText(etStartup, current.startupDelayMs);
+        setNumberText(etStep, current.stepDelayMs);
+        setNumberText(etDrag, current.dragDurationMs);
+        setNumberText(etHold, current.holdDelayMs);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setView(content)
+                .create();
+
+        btnRestore.setOnClickListener(v -> {
+            MacroConfig.resetToDefaults(this);
+            MacroConfig.MacroDelays defaults = MacroConfig.load(this);
+            setNumberText(etStartup, defaults.startupDelayMs);
+            setNumberText(etStep, defaults.stepDelayMs);
+            setNumberText(etDrag, defaults.dragDurationMs);
+            setNumberText(etHold, defaults.holdDelayMs);
+            Toast.makeText(this, "已恢复初始设定", Toast.LENGTH_SHORT).show();
+        });
+
+        btnSave.setOnClickListener(v -> {
+            Long startup = parseLongOrNull(etStartup);
+            Long step = parseLongOrNull(etStep);
+            Long drag = parseLongOrNull(etDrag);
+            Long hold = parseLongOrNull(etHold);
+            if (startup == null || step == null || drag == null || hold == null) {
+                Toast.makeText(this, "请输入有效的毫秒数", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            MacroConfig.save(this, new MacroConfig.MacroDelays(startup, step, drag, hold));
+            Toast.makeText(this, "已保存", Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private static void setNumberText(EditText editText, long value) {
+        if (editText == null) return;
+        editText.setText(String.valueOf(value));
+        editText.setSelection(editText.getText().length());
+    }
+
+    private static Long parseLongOrNull(EditText editText) {
+        if (editText == null) return null;
+        String text = editText.getText() == null ? null : editText.getText().toString().trim();
+        if (text == null || text.isEmpty()) return null;
+        try {
+            return Long.parseLong(text);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 
     private boolean checkPermissionsAndStart() {

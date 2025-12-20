@@ -28,7 +28,6 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
     private static VolumeKeyAccessibilityService instance;
     private static boolean functionEnabled = false;
 
-    private static final String PREFS_NAME = "miao3trike_prefs";
     private static final String PREF_KEY_BUTTON_CENTER_CUSTOMIZED = "button_center_customized";
     private static final String PREF_KEY_BUTTON_CENTER_X = "button_center_x";
     private static final String PREF_KEY_BUTTON_CENTER_Y = "button_center_y";
@@ -38,14 +37,11 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
     private static final float BUTTON_CENTER_RY = 0.0745f;
 
     private static final long GESTURE_DELAY_MS = 10L;
-    private static final long DELAY_AFTER_OVERLAY_DEACTIVATION_MS = 30L; // 等待 overlay 更新为不可触摸/隐藏后再开始宏
-    private static final long DRAG_DURATION_MS = 400L;      // 拖动时长，避免被系统忽略
+    // 拖动时长（可配置）用于宏注入；为避免被系统忽略，建议不要过小。
     private static final long DRAG_TIMEOUT_MS = 3000L;
     private static final float MIN_DRAG_DISTANCE_PX = 5f;
 
     private static final long TAP_DURATION_MS = 10L;
-    private static final long MACRO_STEP_DELAY_MS = 10L;
-    private static final long MACRO_HOLD_AT_END_MS = 500L;
     private static final long MACRO_TIMEOUT_MS = 5000L;
 
     private static final float BUTTON_MARKER_RADIUS_DP = 10f;
@@ -318,12 +314,12 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
 
     private PointF readCustomizedButtonCenter(DisplayMetrics metrics) {
         try {
-            boolean customized = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            boolean customized = getSharedPreferences(MacroConfig.PREFS_NAME, MODE_PRIVATE)
                     .getBoolean(PREF_KEY_BUTTON_CENTER_CUSTOMIZED, false);
             if (!customized) return null;
-            float x = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            float x = getSharedPreferences(MacroConfig.PREFS_NAME, MODE_PRIVATE)
                     .getFloat(PREF_KEY_BUTTON_CENTER_X, -1f);
-            float y = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            float y = getSharedPreferences(MacroConfig.PREFS_NAME, MODE_PRIVATE)
                     .getFloat(PREF_KEY_BUTTON_CENTER_Y, -1f);
             if (x < 0f || y < 0f) return null;
             float maxX = Math.max(0f, metrics.widthPixels - 1f);
@@ -339,7 +335,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
 
     private void persistButtonCenter(float x, float y) {
         try {
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+            getSharedPreferences(MacroConfig.PREFS_NAME, MODE_PRIVATE)
                     .edit()
                     .putBoolean(PREF_KEY_BUTTON_CENTER_CUSTOMIZED, true)
                     .putFloat(PREF_KEY_BUTTON_CENTER_X, x)
@@ -401,14 +397,16 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             return;
         }
         cancelMacroIfRunning("restart");
-        MacroState state = new MacroState(buttonCenter, dragStart, dragEnd);
+        MacroConfig.MacroDelays delays = MacroConfig.load(this);
+        MacroState state = new MacroState(buttonCenter, dragStart, dragEnd, delays);
         macroState = state;
         state.timeoutRunnable = () -> abortMacro("timeout");
         handler.postDelayed(state.timeoutRunnable, MACRO_TIMEOUT_MS);
 
-        Log.d(TAG, "Run macro v2: startDelay=" + DELAY_AFTER_OVERLAY_DEACTIVATION_MS + "ms, tap=" + buttonCenter
+        Log.d(TAG, "Run macro v2: startDelay=" + state.startupDelayMs + "ms, stepDelay=" + state.stepDelayMs
+                + "ms, dragDuration=" + state.dragDurationMs + "ms, hold=" + state.holdDelayMs + "ms, tap=" + buttonCenter
                 + " -> dragHold " + dragStart + " -> " + dragEnd
-                + " -> back -> hold " + MACRO_HOLD_AT_END_MS + "ms -> up");
+                + " -> back -> hold -> up");
 
         state.startRunnable = () -> {
             if (macroState != state) return;
@@ -421,7 +419,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             ));
             handler.postDelayed(state.afterTapFallback, TAP_DURATION_MS + 200);
         };
-        handler.postDelayed(state.startRunnable, DELAY_AFTER_OVERLAY_DEACTIVATION_MS);
+        handler.postDelayed(state.startRunnable, state.startupDelayMs);
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -446,7 +444,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
     }
 
     @TargetApi(Build.VERSION_CODES.N)
-    private void dispatchDrag(PointF start, PointF end, GestureResultCallback result) {
+    private void dispatchDrag(PointF start, PointF end, long durationMs, GestureResultCallback result) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
             failThisRound("api_too_low_drag");
             return;
@@ -455,8 +453,13 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
         path.moveTo(start.x, start.y);
         path.lineTo(end.x, end.y);
 
+        long clampedDurationMs = MacroConfig.clamp(
+                durationMs,
+                MacroConfig.MIN_DRAG_DURATION_MS,
+                MacroConfig.MAX_DRAG_DURATION_MS
+        );
         GestureDescription.StrokeDescription stroke =
-                new GestureDescription.StrokeDescription(path, 0, DRAG_DURATION_MS);
+                new GestureDescription.StrokeDescription(path, 0, clampedDurationMs);
         GestureDescription gesture = new GestureDescription.Builder()
                 .addStroke(stroke)
                 .build();
@@ -497,7 +500,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
         state.dragStarted = true;
         if (state.afterTapFallback != null) handler.removeCallbacks(state.afterTapFallback);
 
-        handler.postDelayed(() -> macroDispatchDragHold(state, trigger), MACRO_STEP_DELAY_MS);
+        handler.postDelayed(() -> macroDispatchDragHold(state, trigger), state.stepDelayMs);
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -505,16 +508,16 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
         if (macroState != state) return;
 
         // API 24/25 上不保证支持“继续笔画”；此处提供降级：普通拖动（会松手）→ 返回 → 结束。
-        GestureDescription.StrokeDescription dragHoldStroke = createDragStroke(state.dragStart, state.dragEnd, true);
+        GestureDescription.StrokeDescription dragHoldStroke = createDragStroke(state.dragStart, state.dragEnd, true, state.dragDurationMs);
         if (dragHoldStroke == null) {
             Log.w(TAG, "Continuous stroke unsupported, fallback to normal drag. trigger=" + trigger);
-            dispatchDrag(state.dragStart, state.dragEnd, new GestureCallbackAdapter(
+            dispatchDrag(state.dragStart, state.dragEnd, state.dragDurationMs, new GestureCallbackAdapter(
                     () -> handler.postDelayed(() -> {
                         if (macroState != state) return;
                         boolean backOk = performGlobalAction(GLOBAL_ACTION_BACK);
                         Log.d(TAG, "performGlobalAction(BACK) ok=" + backOk + " (fallback)");
                         finishRound();
-                    }, MACRO_STEP_DELAY_MS),
+                    }, state.stepDelayMs),
                     () -> {
                         if (macroState == state) abortMacro("drag_fallback_cancelled");
                     }
@@ -522,7 +525,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             state.finishFallback = () -> {
                 if (macroState == state) finishRound();
             };
-            handler.postDelayed(state.finishFallback, DRAG_DURATION_MS + 500);
+            handler.postDelayed(state.finishFallback, state.dragDurationMs + 500);
             return;
         }
 
@@ -543,7 +546,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             abortMacro("gesture_dispatch_failed_drag_hold");
             return;
         }
-        handler.postDelayed(state.afterDragFallback, DRAG_DURATION_MS + 200);
+        handler.postDelayed(state.afterDragFallback, state.dragDurationMs + 200);
     }
 
     private void macroAfterDragHoldOnce(MacroState state, String trigger) {
@@ -556,7 +559,7 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             boolean backOk = performGlobalAction(GLOBAL_ACTION_BACK);
             Log.d(TAG, "performGlobalAction(BACK) ok=" + backOk + " trigger=" + trigger);
             macroDispatchHoldAndRelease(state);
-        }, MACRO_STEP_DELAY_MS);
+        }, state.stepDelayMs);
     }
 
     @TargetApi(Build.VERSION_CODES.N)
@@ -567,7 +570,8 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             return;
         }
 
-        GestureDescription.StrokeDescription endHoldAndUp = continueStrokeAtEnd(state.heldStroke, state.dragEnd, MACRO_HOLD_AT_END_MS);
+        long holdDurationMs = Math.max(1L, state.holdDelayMs);
+        GestureDescription.StrokeDescription endHoldAndUp = continueStrokeAtEnd(state.heldStroke, state.dragEnd, holdDurationMs);
         if (endHoldAndUp == null) {
             Log.w(TAG, "continueStroke unavailable; cannot guarantee hold+release. Ending macro.");
             finishRound();
@@ -594,26 +598,31 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
             abortMacro("gesture_dispatch_failed_hold_release");
             return;
         }
-        handler.postDelayed(state.finishFallback, MACRO_HOLD_AT_END_MS + 500);
+        handler.postDelayed(state.finishFallback, holdDurationMs + 500);
     }
 
-    private GestureDescription.StrokeDescription createDragStroke(PointF start, PointF end, boolean willContinue) {
+    private GestureDescription.StrokeDescription createDragStroke(PointF start, PointF end, boolean willContinue, long durationMs) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return null;
         Path path = new Path();
         path.moveTo(start.x, start.y);
         path.lineTo(end.x, end.y);
 
+        long clampedDurationMs = MacroConfig.clamp(
+                durationMs,
+                MacroConfig.MIN_DRAG_DURATION_MS,
+                MacroConfig.MAX_DRAG_DURATION_MS
+        );
         if (willContinue) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null;
             try {
-                return new GestureDescription.StrokeDescription(path, 0, DRAG_DURATION_MS, true);
+                return new GestureDescription.StrokeDescription(path, 0, clampedDurationMs, true);
             } catch (NoSuchMethodError e) {
                 Log.w(TAG, "StrokeDescription(willContinue) unsupported: " + e);
                 return null;
             }
         }
 
-        return new GestureDescription.StrokeDescription(path, 0, DRAG_DURATION_MS);
+        return new GestureDescription.StrokeDescription(path, 0, clampedDurationMs);
     }
 
     private GestureDescription.StrokeDescription continueStrokeAtEnd(
@@ -669,6 +678,10 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
         final PointF buttonCenter;
         final PointF dragStart;
         final PointF dragEnd;
+        final long startupDelayMs;
+        final long stepDelayMs;
+        final long dragDurationMs;
+        final long holdDelayMs;
 
         boolean dragStarted = false;
         boolean afterDragInvoked = false;
@@ -680,10 +693,14 @@ public class VolumeKeyAccessibilityService extends AccessibilityService {
         Runnable afterDragFallback;
         Runnable finishFallback;
 
-        MacroState(PointF buttonCenter, PointF dragStart, PointF dragEnd) {
+        MacroState(PointF buttonCenter, PointF dragStart, PointF dragEnd, MacroConfig.MacroDelays delays) {
             this.buttonCenter = buttonCenter;
             this.dragStart = dragStart;
             this.dragEnd = dragEnd;
+            this.startupDelayMs = delays.startupDelayMs;
+            this.stepDelayMs = delays.stepDelayMs;
+            this.dragDurationMs = delays.dragDurationMs;
+            this.holdDelayMs = delays.holdDelayMs;
         }
     }
 
