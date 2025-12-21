@@ -66,7 +66,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:lineSpacingExtra="3dp"
-            android:text="通过无障碍服务模拟操作暂停按钮和手机返回键\n以达到暂停闪回（划火柴）\n零帧技能 和 逐帧步进\n使用悬浮窗打开/关闭\n需要权限：\n无障碍服务权限和悬浮窗权限"
+            android:text="通过无障碍服务模拟操作暂停按钮和手机返回键\n以达到暂停闪回（划火柴）\n零帧技能 和 逐帧步进\n使用悬浮窗打开/关闭\n需要权限：\n无障碍服务权限和悬浮窗权限\n进入划火柴模式后，记得拖动蓝点修改暂停按钮位置！！！！！！"
             android:textColor="#FF9800"
             android:textSize="12sp" />
     </LinearLayout>
