@@ -213,8 +213,6 @@ public class FloatingWindowService extends Service {
 
                         if (clickDuration < CLICK_DURATION && dx < CLICK_DRIFT && dy < CLICK_DRIFT) {
                             toggleFunction();
-                        } else {
-                            snapToEdge();
                         }
                         return true;
                 }
@@ -298,17 +296,6 @@ public class FloatingWindowService extends Service {
     private int getMaxY() {
         DisplayMetrics metrics = getOverlayDisplayMetrics();
         return Math.max(0, metrics.heightPixels - getFloatingHeightPx());
-    }
-
-    private void snapToEdge() {
-        if (params == null || windowManager == null || floatingView == null) return;
-        int maxX = getMaxX();
-        int maxY = getMaxY();
-        int targetX = (params.x <= maxX / 2) ? 0 : maxX;
-        int targetY = clampInt(params.y, 0, maxY);
-        params.x = targetX;
-        params.y = targetY;
-        windowManager.updateViewLayout(floatingView, params);
     }
 
     private int clampInt(int value, int min, int max) {
