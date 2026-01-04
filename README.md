@@ -1,8 +1,15 @@
 ﻿# Miao3trikeMod AAR
 
+<img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android" alt="Platform" />
+<img src="https://img.shields.io/badge/Language-Kotlin%20%2F%20Java-purple?style=flat-square&logo=kotlin" alt="Language" />
+<img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License" />
+<img src="https://img.shields.io/github/stars/Hollow-YK/Miao3trikeMod_AAR?style=flat-square&logo=github&color=darkgreen" alt="Stars" />
+
 将原本的[**Miao3trikeMod**](https://github.com/SuperMaxine/Miao3trikeMod)打包成AAR，用来实现核心功能。基本上没改代码。
 
 该AAR用于[**Miao3trikeFlutter**](https://github.com/Hollow-YK/Miao3trike_Flutter)，以实现核心功能。
+
+如有 Bug ，请自行修复。本人自认为本人技术水平不足以修复该项目中可能存在的 Bug 。
 
 ## 编译AAR
 
