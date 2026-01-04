@@ -1,4 +1,41 @@
-﻿<div align="center">
+﻿# Miao3trikeMod AAR
+
+将原本的[**Miao3trikeMod**](https://github.com/SuperMaxine/Miao3trikeMod)打包成AAR，用来实现核心功能。基本上没改代码。
+
+该AAR用于[**Miao3trikeFlutter**](https://github.com/Hollow-YK/Miao3trike_Flutter)，以实现核心功能。
+
+## 编译AAR
+
+生成 Release 版：`./gradlew :app:assembleRelease`
+
+或者生成 Debug 版：`./gradlew :app:assembleDebug`
+
+如果没什么意外的话应该会出现如下输出（示例为Windows系统，用手动■遮挡了部分路径）：
+```
+./gradlew :app:assembleRelease
+Starting a Gradle Daemon, 3 incompatible and 1 stopped Daemons could not be reused, use --status for details
+
+> Task :app:processReleaseManifest
+package="com.miao3strikemod.matches" found in source AndroidManifest.xml: ■:\■■■■\■■■■■\Miao3trikeMod_AAR\app\src\main\AndroidManifest.xml.
+Setting the namespace via the package attribute in the source AndroidManifest.xml is no longer supported, and the value is ignored.
+Recommendation: remove package="com.miao3strikemod.matches" from the source AndroidManifest.xml: ■:\■■■■\■■■■■\Miao3trikeMod_AAR\app\src\main\AndroidManifest.xml.
+
+> Task :app:compileReleaseJavaWithJavac
+注: 某些输入文件使用或覆盖了已过时的 API。
+注: 有关详细信息, 请使用 -Xlint:deprecation 重新编译。
+[Incubating] Problems report is available at: file:///■:/■■■■/■■■■■/Miao3trikeMod_AAR/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 35s                                                                                                                                                         
+25 actionable tasks: 21 executed, 4 up-to-date
+```
+
+## 关于 Miao3trikeMod
+
+下面是**Miao3trikeMod**的README
+
+---
+
+<div align="center">
   <img src="app/src/main/res/drawable/ic_cat_head.png" alt="Logo" width="100" height="100">
 
   <h1 align="center">Miao3trike</h1>

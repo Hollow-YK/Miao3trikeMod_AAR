@@ -26,7 +26,7 @@
         tools:targetApi="31">
 
         <!-- 主活动 -->
-        <activity
+         <!-- <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop">
@@ -34,7 +34,7 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity> -->
 
         <!-- 悬浮窗服务 -->
         <service

@@ -1,5 +1,5 @@
 plugins {
-    id 'com.android.application'
+    id 'com.android.library'
 }
 
 android {
@@ -7,13 +7,19 @@ android {
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.miao3strikemod.matches"
+        // applicationId "com.miao3strikemod.matches"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // 添加消费者混淆规则
+        consumerProguardFiles "consumer-rules.pro"
+        
+        // 可选：添加资源前缀，避免资源冲突
+        resourcePrefix "miao3strikemod_"
     }
 
     buildTypes {
@@ -25,6 +31,20 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    // 如果需要打包资源文件，添加以下配置
+    sourceSets {
+        main {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+            java.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+    
+    packagingOptions {
+        exclude 'AndroidManifest.xml'
     }
 }
 
